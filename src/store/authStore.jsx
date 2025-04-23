@@ -44,34 +44,45 @@ export const useAuthStore = create((set) => ({
 					console.log(data);
 					localStorage.setItem("auth", true);
 					localStorage.setItem("isMentor", data.type === "mentor");
-					set({ 
-						isAuthenticated: true, 
-						isCheckingAuth: false, 
+					set({
+						isAuthenticated: true,
+						isCheckingAuth: false,
 						isMentor: data.type === "mentor",
 						user: {
 							email: data.email,
 							github: data.github,
 							type: data.type
-						} 
+						}
 					});
 				}).catch(async resp => {
-					if (resp.status === 401) {
-						// If the status code is 401, logout the user
-						localStorage.setItem("auth", 'false');
-						localStorage.removeItem("isMentor");
-						document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`; // Clear token cookie
-					}
-					let data = await resp.json();
-					if ("message" in data) {
-						set({ error: data.message, isCheckingAuth: false, isAuthenticated: false });
-					} else if (typeof data.error == "string") {
-						set({ error: data.error, isCheckingAuth: false, isAuthenticated: false });
-					} else {
-						set({ error: data.error[0].msg, isCheckingAuth: false, isAuthenticated: false });
+					try {
+						if (resp.status === 401) {
+							localStorage.setItem("auth", 'false');
+							localStorage.removeItem("isMentor");
+							document.cookie = `token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+						}
+				
+						let data;
+						if (typeof resp.json === "function") {
+							data = await resp.json();
+						} else {
+							throw new Error("Response is not JSON");
+						}
+				
+						if ("message" in data) {
+							set({ error: data.message, isCheckingAuth: false, isAuthenticated: false });
+						} else if (typeof data.error === "string") {
+							set({ error: data.error, isCheckingAuth: false, isAuthenticated: false });
+						} else {
+							set({ error: data.error?.[0]?.msg ?? "Unknown error", isCheckingAuth: false, isAuthenticated: false });
+						}
+					} catch (e) {
+						console.error("Auth fetch failed:", e);
+						set({ error: "Authentication failed", isCheckingAuth: false, isAuthenticated: false });
 					}
 				});
 			}
-			if (index >= allcookies.length - 1 && !is_token_found){
+			if (index >= allcookies.length - 1 && !is_token_found) {
 				// If the status code is 401, logout the user
 				localStorage.setItem("auth", 'false');
 				localStorage.removeItem("isMentor");
@@ -90,7 +101,7 @@ export const useAuthStore = create((set) => ({
 		set({ isLoading: true });
 		localStorage.setItem("auth", false);
 		localStorage.removeItem("isMentor");
-		
+
 		set({ isAuthenticated: false, error: null, isLoading: false, isCheckingAuth: false });
 	}
 }));
